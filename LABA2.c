@@ -10,21 +10,21 @@
 #include <errno.h>
 #include <sys/select.h>
 
-#define PORT 49746 // Порт сервера
-#define BUF_SIZE 1024 // Размер буфера для данных
+#define PORT 49746 
+#define BUF_SIZE 1024 
 
-// Глобальные переменные
-volatile sig_atomic_t g_got_sighup = 0; // Флаг для обработки SIGHUP
-int g_accepted_socket = -1; // Дескриптор активного клиентского соединения
 
-// Обработчик сигнала SIGHUP
+volatile sig_atomic_t g_got_sighup = 0; // SIGHUP
+int g_accepted_socket = -1; 
+
+
 void handle_signal(int signum) {
     if (signum == SIGHUP) {
-        g_got_sighup = 1; // Устанавливаем флаг для обработки
+        g_got_sighup = 1; 
     }
 }
 
-// Установка сокета в неблокирующий режим
+
 void set_non_blocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) {
@@ -37,21 +37,21 @@ void set_non_blocking(int fd) {
     }
 }
 
-// Закрытие серверного сокета с проверкой
+
 void close_socket(int *socket_fd, const char *name) {
     if (*socket_fd != -1) {
         close(*socket_fd);
-        printf("%s закрыт\n", name);
+        printf("%s Г§Г ГЄГ°Г»ГІ\n", name);
         *socket_fd = -1;
     }
 }
 
 int main() {
-    int server_socket = -1; // Дескриптор серверного сокета
+    int server_socket = -1; 
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    // Настройка обработки сигналов
+    
     struct sigaction sa = {0};
     sa.sa_handler = handle_signal;
     sa.sa_flags = SA_RESTART;
@@ -60,33 +60,33 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Создание серверного сокета
+    
     if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket");
         exit(EXIT_FAILURE);
     }
 
-    // Настройка адреса сервера
+    
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    // Привязка сокета
+    
     if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
         perror("bind");
-        close_socket(&server_socket, "Серверный сокет");
+        close_socket(&server_socket, "РЎРµСЂРІРµСЂРЅС‹Р№ СЃРѕРєРµС‚");
         exit(EXIT_FAILURE);
     }
 
-    // Прослушивание входящих соединений
+    
     if (listen(server_socket, 10) == -1) {
         perror("listen");
-        close_socket(&server_socket, "Серверный сокет");
+        close_socket(&server_socket, "РЎРµСЂРІРµСЂРЅС‹Р№ СЃРѕРєРµС‚");
         exit(EXIT_FAILURE);
     }
 
-    printf("Сервер запущен и слушает порт %d\n", PORT);
+    printf("РЎРµСЂРІРµСЂ Р·Р°РїСѓС‰РµРЅ Рё СЃР»СѓС€Р°РµС‚ РїРѕСЂС‚ %d\n", PORT);
 
     fd_set read_fds;
     sigset_t block_mask, orig_mask;
@@ -96,14 +96,14 @@ int main() {
 
     if (sigprocmask(SIG_BLOCK, &block_mask, &orig_mask) == -1) {
         perror("sigprocmask");
-        close_socket(&server_socket, "Серверный сокет");
+        close_socket(&server_socket, "РЎРµСЂРІРµСЂРЅС‹Р№ СЃРѕРєРµС‚");
         exit(EXIT_FAILURE);
     }
 
     while (1) {
-        // Проверка на сигнал SIGHUP
+        
         if (g_got_sighup) {
-            printf("Получен SIGHUP. Завершаем работу сервера\n");
+            printf("РџРѕР»СѓС‡РµРЅ SIGHUP. Р—Р°РІРµСЂС€Р°РµРј СЂР°Р±РѕС‚Сѓ СЃРµСЂРІРµСЂР°\n");
             g_got_sighup = 0;
             break;
         }
@@ -119,7 +119,7 @@ int main() {
             }
         }
 
-        // Ожидание событий на сокетах
+        
         int result = pselect(max_fd + 1, &read_fds, NULL, NULL, NULL, &orig_mask);
         if (result == -1) {
             if (errno == EINTR) {
@@ -130,43 +130,43 @@ int main() {
             }
         }
 
-        // Обработка новых подключений
+        
         if (FD_ISSET(server_socket, &read_fds)) {
             int client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &client_len);
             if (client_socket == -1) {
                 perror("accept");
                 continue;
             }
-            printf("Новое соединение с %s:%d\n",
+            printf("РќРѕРІРѕРµ СЃРѕРµРґРёРЅРµРЅРёРµ СЃ %s:%d\n",
                    inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
             if (g_accepted_socket == -1) {
                 g_accepted_socket = client_socket;
                 set_non_blocking(g_accepted_socket);
             } else {
-                printf("Закрытие лишнего соединения\n");
+                printf("Р—Р°РєСЂС‹С‚РёРµ Р»РёС€РЅРµРіРѕ СЃРѕРµРґРёРЅРµРЅРёСЏ \n");
                 close(client_socket);
             }
         }
 
-        // Обработка данных от клиента
+        
         if (g_accepted_socket != -1 && FD_ISSET(g_accepted_socket, &read_fds)) {
             char buffer[BUF_SIZE];
             ssize_t bytes_read = recv(g_accepted_socket, buffer, BUF_SIZE - 1, 0);
             if (bytes_read > 0) {
                 buffer[bytes_read] = '\0';
-                printf("Получено %zd байтов: %s\n", bytes_read, buffer);
+                printf("РџРѕР»СѓС‡РµРЅРѕ %zd Р±Р°Р№С‚РѕРІ: %s\n", bytes_read, buffer);
             } else if (bytes_read == 0) {
-                printf("Клиент закрыл соединение\n");
-                close_socket(&g_accepted_socket, "Клиентский сокет");
+                printf("РљР»РёРµРЅС‚ Р·Р°РєСЂС‹Р» СЃРѕРµРґРёРЅРµРЅРёРµ\n");
+                close_socket(&g_accepted_socket, "РљР»РёРµРЅС‚СЃРєРёР№ СЃРѕРєРµС‚");
             } else if (errno != EAGAIN) {
                 perror("recv");
-                close_socket(&g_accepted_socket, "Клиентский сокет");
+                close_socket(&g_accepted_socket, "РљР»РёРµРЅС‚СЃРєРёР№ СЃРѕРєРµС‚");
             }
         }
     }
 
-    close_socket(&server_socket, "Серверный сокет");
-    close_socket(&g_accepted_socket, "Клиентский сокет");
+    close_socket(&server_socket, "РЎРµСЂРІРµСЂРЅС‹Р№ СЃРѕРєРµС‚");
+    close_socket(&g_accepted_socket, "РљР»РёРµРЅС‚СЃРєРёР№ СЃРѕРєРµС‚");
     return 0;
 }
